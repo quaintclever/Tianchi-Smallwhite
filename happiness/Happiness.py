@@ -125,39 +125,64 @@ def get_data():
 
 
 if __name__ == "__main__":
+    # ================================================
     # 获取特征工程处理好的数据
+    # ================================================
     x_train, x_test, y_train, y_test, test = get_data()
 
+    # ================================================
     # # 随机森林模型训练
-    # rfc = RandomForestClassifier(n_estimators=400, max_depth=20)
+    # ================================================
+    # rfc = RandomForestClassifier(n_estimators=600, max_depth=20)
     # rfc.fit(x_train, y_train)
+
+    # # 预测 ，计算 score
+    # rf_score = rfc.score(x_test, y_test)
+    # print("rf_score ：", rf_score)
+
     # # 预测 ，计算 mse
     # y_predict = rfc.predict(x_test)
     # loss = mean_squared_error(y_test, y_predict)
     # print("mse ：", loss)
+
     # # 预测test
     # test_predict = rfc.predict(test.iloc[:, 1:])
 
+    # ================================================
     # 网格搜索 随机森林参数
+    # ================================================
     param = {
-        "n_estimators": [200, 400, 600, 800, 1000],
-        "max_depth": [5, 10, 15, 20, 25]
+        "n_estimators": [500, 550, 600, 650, 700],
+        "max_depth": [15, 18, 20, 22, 25]
     }
     rfc = RandomForestClassifier()
-    gcv = GridSearchCV(rfc, param_grid=param, cv=5)
+    gcv = GridSearchCV(rfc, param_grid=param, cv=5, scoring="accuracy")
     print("-------训练开始-------", datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
     gcv.fit(x_train, y_train)
     print("-------训练结束-------", datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+    # 最好的估计器
     rfc_best = gcv.best_estimator_
     param_best = gcv.best_params_
     print("最好的参数如下：", param_best)
+
+    # 计算mse
     y_predict = rfc_best.predict(x_test)
     loss = mean_squared_error(y_test, y_predict)
     print("best_mse ：", loss)
+
+    # 计算score
+    rf_score = gcv.score(x_test, y_test)
+    print("score ：", rf_score)
     # 预测test
     test_predict = rfc_best.predict(test.iloc[:, 1:])
 
+    # ================================================
+    # 由于试题标准 是mse， 所以 也可以考虑用回归
+    # ================================================
+
+    # ================================================
     # 输出数据
+    # ================================================
     with open("./output/rf_happiness_submit.csv", "w+") as f:
         f.write("id,happiness\n")
         for i, h in enumerate(test_predict):
