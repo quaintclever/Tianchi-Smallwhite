@@ -1,12 +1,9 @@
 import pandas as pd
 import numpy as np
-from sklearn.model_selection import train_test_split
+import datetime
+from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import mean_squared_error
-
-# 导入数据
-train = pd.read_csv("./data/happiness_train_abbr.csv")
-test = pd.read_csv("./data/happiness_test_abbr.csv")
 
 
 # 特征工程
@@ -105,30 +102,63 @@ def fill_na_data(data):
     return data
 
 
-# 特征值数据填充
-train["happiness"] = train["happiness"].fillna(3)
-# 训练集特征处理
-train = fill_na_data(train)
-# 测试集特征处理
-test = fill_na_data(test)
+# 导入数据
+def get_data():
+    """
+    导入数据，并调用特征工程，处理，分割
+    :return: 分割好的数据
+    """
+    train = pd.read_csv("./data/happiness_train_abbr.csv")
+    test = pd.read_csv("./data/happiness_test_abbr.csv")
 
-# 分割数据集 id happiness 不参与训练
-x_train, x_test, y_train, y_test = train_test_split(train.iloc[:, 2:], train["happiness"], test_size=0.25)
+    # 训练集特征处理
+    train = fill_na_data(train)
+    # 特征值数据填充
+    train["happiness"] = train["happiness"].fillna(3)
 
-# 模型训练
-rfc = RandomForestClassifier(n_estimators=400, max_depth=20)
-rfc.fit(x_train, y_train)
+    # 测试集特征处理
+    test = fill_na_data(test)
 
-# 预测 ，计算 mse
-y_predict = rfc.predict(x_test)
-loss = mean_squared_error(y_test, y_predict)
-print("mse ：", loss)
+    # 分割数据集 id happiness 不参与训练
+    x_train, x_test, y_train, y_test = train_test_split(train.iloc[:, 2:], train["happiness"], test_size=0.25)
+    return x_train, x_test, y_train, y_test, test
 
-# 预测test
-test_predict = rfc.predict(test.iloc[:, 1:])
 
-# 输出数据
-# with open("./output/rf_happiness_submit.csv", "w+") as f:
-#     f.write("id,happiness\n")
-#     for i,h in enumerate(test_predict):
-#         f.write(str(i+8001) +","+str(int(h))+ "\n")
+if __name__ == "__main__":
+    # 获取特征工程处理好的数据
+    x_train, x_test, y_train, y_test, test = get_data()
+
+    # # 随机森林模型训练
+    # rfc = RandomForestClassifier(n_estimators=400, max_depth=20)
+    # rfc.fit(x_train, y_train)
+    # # 预测 ，计算 mse
+    # y_predict = rfc.predict(x_test)
+    # loss = mean_squared_error(y_test, y_predict)
+    # print("mse ：", loss)
+    # # 预测test
+    # test_predict = rfc.predict(test.iloc[:, 1:])
+
+    # 网格搜索 随机森林参数
+    param = {
+        "n_estimators": [200, 400, 600, 800, 1000],
+        "max_depth": [5, 10, 15, 20, 25]
+    }
+    rfc = RandomForestClassifier()
+    gcv = GridSearchCV(rfc, param_grid=param, cv=5)
+    print("-------训练开始-------", datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+    gcv.fit(x_train, y_train)
+    print("-------训练结束-------", datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+    rfc_best = gcv.best_estimator_
+    param_best = gcv.best_params_
+    print("最好的参数如下：", param_best)
+    y_predict = rfc_best.predict(x_test)
+    loss = mean_squared_error(y_test, y_predict)
+    print("best_mse ：", loss)
+    # 预测test
+    test_predict = rfc_best.predict(test.iloc[:, 1:])
+
+    # 输出数据
+    with open("./output/rf_happiness_submit.csv", "w+") as f:
+        f.write("id,happiness\n")
+        for i, h in enumerate(test_predict):
+            f.write(str(i + 8001) + "," + str(int(h)) + "\n")
